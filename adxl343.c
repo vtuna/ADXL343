@@ -23,30 +23,31 @@
 */
 /**************************************************************************/
 #include "adxl343.h"
+#include "rom/ets_sys.h"
 
 static const char *TAG = "ADXL343 lib";
 
 #ifdef CONFIG_IDF_TARGET_ESP32
-#define HOST1    HSPI_HOST
-#define HOST2    VSPI_HOST
+#define HOST1 HSPI_HOST
+#define HOST2 VSPI_HOST
 
 #elif defined CONFIG_IDF_TARGET_ESP32S2
-#define HOST1    SPI2_HOST
-#define HOST2    SPI3_HOST
+#define HOST1 SPI2_HOST
+#define HOST2 SPI3_HOST
 
 #elif defined CONFIG_IDF_TARGET_ESP32C3
-#define HOST1    SPI2_HOST
-#define HOST2    SPI3_HOST
+#define HOST1 SPI2_HOST
+#define HOST2 SPI2_HOST
 
 #elif defined CONFIG_IDF_TARGET_ESP32S3
-#define HOST1    SPI2_HOST
-#define HOST2    SPI3_HOST
+#define HOST1 SPI2_HOST
+#define HOST2 SPI3_HOST
 #endif
 
 void ADXL343_write_reg(ADXL343_cfg *pcfg, uint8_t addr, uint8_t reg)
 {
 	esp_err_t ret;
-	if(pcfg->interface.interface_type == ADXL343_I2C)
+	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
 		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 		i2c_master_start(cmd);
@@ -59,26 +60,25 @@ void ADXL343_write_reg(ADXL343_cfg *pcfg, uint8_t addr, uint8_t reg)
 	}
 	else
 	{
-		spi_transaction_t t;
-		memset(&t, 0, sizeof(t));
-		t.tx_data[0] = reg;
-		t.flags = SPI_TRANS_USE_TXDATA;
-		t.length = 8;
-		t.addr = addr;
-		t.rx_buffer = NULL;
+		spi_transaction_t t = {
+			.addr = addr,
+			.length = 8,
+			.flags = SPI_TRANS_USE_TXDATA,
+		};
 
-		spi_device_acquire_bus(pcfg->interface.interface.spi._spi_handle, portMAX_DELAY);
+		t.tx_data[0] = reg;
+
+		// spi_device_acquire_bus(pcfg->interface.interface.spi._spi_handle, portMAX_DELAY);
 		ret = spi_device_transmit(pcfg->interface.interface.spi._spi_handle, &t);
 		ESP_ERROR_CHECK(ret);
-		spi_device_release_bus(pcfg->interface.interface.spi._spi_handle);
+		// spi_device_release_bus(pcfg->interface.interface.spi._spi_handle);
 	}
-
 }
 
 uint8_t ADXL343_read_reg(ADXL343_cfg *pcfg, uint8_t addr)
 {
 	esp_err_t ret;
-	if(pcfg->interface.interface_type == ADXL343_I2C)
+	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
 		uint8_t temp_reg = 0;
 
@@ -102,16 +102,16 @@ uint8_t ADXL343_read_reg(ADXL343_cfg *pcfg, uint8_t addr)
 	}
 	else
 	{
-		spi_transaction_t t;
-		memset(&t, 0, sizeof(t));
-		t.addr = addr; // use address phase
-		t.tx_buffer = NULL; // skip write phase
-		t.flags = SPI_TRANS_USE_RXDATA;
-		t.length = 0;
-		t.rxlength = 8;
+		spi_transaction_t t = {
+			.addr = addr | 0x80,
+			.length = 8,
+			.flags = SPI_TRANS_USE_RXDATA};
 
-		ret = spi_device_transmit(pcfg->interface.interface.spi._spi_handle, &t);
+		// spi_device_acquire_bus(pcfg->interface.interface.spi._spi_handle, portMAX_DELAY);
+		ret = spi_device_polling_transmit(pcfg->interface.interface.spi._spi_handle, &t);
 		ESP_ERROR_CHECK(ret);
+		// spi_device_release_bus(pcfg->interface.interface.spi._spi_handle);
+		ESP_LOGV(TAG, "read reg8 %u is %lu", addr, *((uint32_t *)t.rx_data));
 
 		return t.rx_data[0];
 	}
@@ -119,8 +119,7 @@ uint8_t ADXL343_read_reg(ADXL343_cfg *pcfg, uint8_t addr)
 
 uint16_t ADXL343_read_reg16(ADXL343_cfg *pcfg, uint8_t addr)
 {
-	esp_err_t ret;
-	if(pcfg->interface.interface_type == ADXL343_I2C)
+	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
 		uint8_t temp_reg[2] = {0, 0};
 
@@ -136,7 +135,7 @@ uint16_t ADXL343_read_reg16(ADXL343_cfg *pcfg, uint8_t addr)
 		i2c_master_start(cmd);
 		i2c_master_write_byte(cmd, (pcfg->interface.interface.i2c.addr << 1) | I2C_MASTER_READ, true);
 		i2c_master_read_byte(cmd, temp_reg, false);
-		i2c_master_read_byte(cmd, temp_reg+1, true);
+		i2c_master_read_byte(cmd, temp_reg + 1, true);
 		i2c_master_stop(cmd);
 		i2c_master_cmd_begin(pcfg->interface.interface.i2c.port_num, cmd, 1000 / portTICK_PERIOD_MS);
 		i2c_cmd_link_delete(cmd);
@@ -144,35 +143,16 @@ uint16_t ADXL343_read_reg16(ADXL343_cfg *pcfg, uint8_t addr)
 	}
 	else
 	{
-		spi_transaction_t t;
-		memset(&t, 0, sizeof(t));
-		t.addr = addr; // use address phase
-		t.tx_buffer = NULL; // skip write phase
-		t.flags = SPI_TRANS_USE_RXDATA;
-		t.length = 0;
-		t.rxlength = 16;
-
-		ret = spi_device_transmit(pcfg->interface.interface.spi._spi_handle, &t);
-		ESP_ERROR_CHECK(ret);
-
-		return t.rx_data[1] << 8 | t.rx_data[0];
+		// TODO read 16bit spi implement
+		return 0;
 	}
 }
 
 void ADXL343_get_x_y_z(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z)
 {
-	esp_err_t ret;
-	if(pcfg->interface.interface_type == ADXL343_I2C)
+	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
 		uint8_t temp_reg[6] = {0, 0, 0, 0, 0, 0};
-		// ret = i2c_master_read_from_device(
-		// 	pcfg->interface.interface.i2c.port_num, 
-		// 	pcfg->interface.interface.i2c.addr,
-		// 	temp_reg, 
-		// 	sizeof(temp_reg),
-		// 	1000 / portTICK_PERIOD_MS
-		// );
-		// ESP_ERROR_CHECK(ret);
 
 		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 		i2c_master_start(cmd);
@@ -186,11 +166,11 @@ void ADXL343_get_x_y_z(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z)
 		i2c_master_start(cmd);
 		i2c_master_write_byte(cmd, (pcfg->interface.interface.i2c.addr << 1) | I2C_MASTER_READ, true);
 		i2c_master_read_byte(cmd, temp_reg, false);
-		i2c_master_read_byte(cmd, temp_reg+1, false);
-		i2c_master_read_byte(cmd, temp_reg+2, false);
-		i2c_master_read_byte(cmd, temp_reg+3, false);
-		i2c_master_read_byte(cmd, temp_reg+4, false);
-		i2c_master_read_byte(cmd, temp_reg+5, true);
+		i2c_master_read_byte(cmd, temp_reg + 1, false);
+		i2c_master_read_byte(cmd, temp_reg + 2, false);
+		i2c_master_read_byte(cmd, temp_reg + 3, false);
+		i2c_master_read_byte(cmd, temp_reg + 4, false);
+		i2c_master_read_byte(cmd, temp_reg + 5, true);
 		i2c_master_stop(cmd);
 		i2c_master_cmd_begin(pcfg->interface.interface.i2c.port_num, cmd, 1000 / portTICK_PERIOD_MS);
 		i2c_cmd_link_delete(cmd);
@@ -200,22 +180,23 @@ void ADXL343_get_x_y_z(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z)
 	}
 	else
 	{
-		// TODO: implement SPI protocol
+		esp_err_t ret;
+		uint16_t buf[3] = {0};
+		spi_transaction_t t = {
+			.addr = ADXL3XX_REG_DATAX0 | 0xC0,
+			.length = 48,
+			.rx_buffer = buf};
 
-		// spi_transaction_t t;
-		// memset(&t, 0, sizeof(t));
-		// t.addr = addr; // use address phase
-		// t.tx_buffer = NULL; // skip write phase;
-		// t.length = 0;
-		// t.rxlength = 48;
+		spi_device_acquire_bus(pcfg->interface.interface.spi._spi_handle, portMAX_DELAY);
+		ret = spi_device_polling_transmit(pcfg->interface.interface.spi._spi_handle, &t);
+		ESP_ERROR_CHECK(ret);
+		spi_device_release_bus(pcfg->interface.interface.spi._spi_handle);
 
-		// ret = spi_device_transmit(pcfg->interface.interface.spi._spi_handle, &t);
-		// ESP_ERROR_CHECK(ret);
-
-		// return t.rx_data[0] << 8 | t.rx_data[1];
+		*x = buf[0];
+		*y = buf[1];
+		*z = buf[2];
 	}
 }
-
 
 uint8_t ADXL343_get_device_id(ADXL343_cfg *pcfg)
 {
@@ -239,24 +220,24 @@ uint8_t ADXL343_check_interrupts(ADXL343_cfg *pcfg)
 
 int16_t ADXL343_get_x(ADXL343_cfg *pcfg)
 {
-	return ((int16_t) ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAX0));
+	return ((int16_t)ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAX0));
 }
 
 int16_t ADXL343_get_y(ADXL343_cfg *pcfg)
 {
-	return ((int16_t) ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAY0));
+	return ((int16_t)ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAY0));
 }
 
 int16_t ADXL343_get_z(ADXL343_cfg *pcfg)
 {
-	return ((int16_t) ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAZ0));
+	return ((int16_t)ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAZ0));
 }
 
 uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 {
-	if(pcfg->interface.interface_type == ADXL343_I2C)
+	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
-		ESP_LOGI(TAG, "Operating at frequency of %d", ets_get_cpu_frequency());
+		ESP_LOGI(TAG, "Operating at frequency of %ld", ets_get_cpu_frequency());
 		ESP_LOGI(TAG, "Attempting to initialise I2C interface");
 		ESP_LOGI(TAG, "SCL pin: %d, SDA pin: %d", pcfg->interface.interface.i2c.scl_pin, pcfg->interface.interface.i2c.sda_pin);
 		i2c_config_t conf = {
@@ -269,7 +250,6 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 		};
 
 		i2c_param_config(pcfg->interface.interface.i2c.port_num, &conf);
-
 
 		esp_err_t ret;
 		ret = i2c_driver_install(pcfg->interface.interface.i2c.port_num, conf.mode, 0, 0, 0);
@@ -286,14 +266,14 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 	else
 	{
 		ESP_LOGI(TAG, "Attempting to initialise SPI interface");
-		spi_bus_config_t buscfg = 
-		{
-			.mosi_io_num = pcfg->interface.interface.spi.mosi_pin,
-			.miso_io_num = pcfg->interface.interface.spi.miso_pin,
-			.sclk_io_num = pcfg->interface.interface.spi.sclk_pin,
-			.quadwp_io_num = -1,
-			.quadhd_io_num = -1,
-		};
+		spi_bus_config_t buscfg =
+			{
+				.mosi_io_num = pcfg->interface.interface.spi.mosi_pin,
+				.miso_io_num = pcfg->interface.interface.spi.miso_pin,
+				.sclk_io_num = pcfg->interface.interface.spi.sclk_pin,
+				.quadwp_io_num = -1,
+				.quadhd_io_num = -1,
+				.max_transfer_sz = 32};
 
 		int busno = HOST1; // default to SPI bus 2
 		if (pcfg->interface.interface.spi.bus_num == 3)
@@ -314,18 +294,17 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 		ret = spi_bus_initialize(busno, &buscfg, SPI_DMA_CH_AUTO);
 		ESP_ERROR_CHECK(ret);
 
-		spi_device_interface_config_t devcfg = 
-		{
-			.command_bits = 0,
-			.address_bits = 8,
-			.dummy_bits = 0,
-			.clock_speed_hz = pcfg->interface.interface.spi.freq,
-			.duty_cycle_pos = 128,        // 50% duty cycle
-			.mode = 0,
-			.spics_io_num = pcfg->interface.interface.spi.cs_pin, 
-			.cs_ena_posttrans = 0,        
-			.queue_size = 7
-		};
+		spi_device_interface_config_t devcfg =
+			{
+				.command_bits = 0,
+				.address_bits = 8,
+				.dummy_bits = 0,
+				.clock_speed_hz = pcfg->interface.interface.spi.freq,
+				.duty_cycle_pos = 128, // 50% duty cycle
+				.mode = 3,
+				.spics_io_num = pcfg->interface.interface.spi.cs_pin,
+				.cs_ena_posttrans = 0,
+				.queue_size = 8};
 
 		ret = spi_bus_add_device(busno, &devcfg, &pcfg->interface.interface.spi._spi_handle);
 		ESP_ERROR_CHECK(ret);
@@ -334,10 +313,11 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 
 	/* Check connection */
 	uint8_t deviceid = ADXL343_get_device_id(pcfg);
-	if (deviceid != 0xE5) 
+	if (deviceid != 0xE5)
 	{
 		/* No ADXL343 detected ... return 1 */
 		ESP_LOGE(TAG, "No ADXL343 detected!");
+		ESP_LOGE(TAG, "deviceid readed is: %x", deviceid);
 		return 1;
 	}
 	else
@@ -345,7 +325,7 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 		ESP_LOGI(TAG, "ADXL343 detected!");
 	}
 
-	pcfg->_range = ADXL343_RANGE_2_G;
+	// pcfg->_range = ADXL343_RANGE_2_G;
 
 	// 	// Default tap detection level (2G, 31.25ms duration, single tap only)
 	// 	// If only the single tap function is in use, the single tap interrupt
@@ -357,9 +337,6 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 	// ADXL343_write_reg(pcfg, ADXL3XX_REG_LATENT, 0);      // Tap latency, 1.25 ms/LSB, 0=no double tap
 	// ADXL343_write_reg(pcfg, ADXL3XX_REG_WINDOW, 0);      // Waiting period,  1.25 ms/LSB, 0=no double tap
 	// ADXL343_write_reg(pcfg, ADXL3XX_REG_TAP_AXES, 0x7);  // Enable the XYZ axis for tap
-
-	// Enable measurements
-	ADXL343_write_reg(pcfg, ADXL3XX_REG_POWER_CTL, 0x08);
 
 	return 0;
 }
@@ -388,16 +365,15 @@ ADXL343DataRate ADXL343_get_datarate(ADXL343_cfg *pcfg)
 	return ADXL343_read_reg(pcfg, ADXL3XX_REG_BW_RATE) & 0x0F;
 }
 
-
 void ADXL343_get_trim_offsets(ADXL343_cfg *pcfg, int8_t *x, int8_t *y, int8_t *z)
 {
-	if(x != NULL)
+	if (x != NULL)
 		*x = ADXL343_read_reg(pcfg, ADXL3XX_REG_OFSX);
 
-	if(y != NULL)
+	if (y != NULL)
 		*y = ADXL343_read_reg(pcfg, ADXL3XX_REG_OFSY);
 
-	if(z != NULL)
+	if (z != NULL)
 		*z = ADXL343_read_reg(pcfg, ADXL3XX_REG_OFSZ);
 }
 
@@ -411,16 +387,21 @@ void ADXL343_set_trim_offsets(ADXL343_cfg *pcfg, int8_t x, int8_t y, int8_t z)
 
 void ADXL343_set_bf(uint8_t *preg, uint8_t start, uint8_t len, uint8_t value)
 {
-    uint8_t bitmask = (1 << len) - 1;
-    value &= bitmask;
-    bitmask <<= start;
-    *preg = (*preg & (~bitmask)) | (value << start);
+	uint8_t bitmask = (1 << len) - 1;
+	value &= bitmask;
+	bitmask <<= start;
+	*preg = (*preg & (~bitmask)) | (value << start);
 }
 
 uint8_t ADXL343_get_bf(uint8_t *preg, uint8_t start, uint8_t len)
 {
-    uint8_t bitmask = ((1 << len) - 1) << start;
-    uint8_t result = (*preg & bitmask) >> start;
-    return result;
+	uint8_t bitmask = ((1 << len) - 1) << start;
+	uint8_t result = (*preg & bitmask) >> start;
+	return result;
 }
 
+void ADXL343_measurements(ADXL343_cfg *pcfg)
+{
+	// Enable measurements
+	ADXL343_write_reg(pcfg, ADXL3XX_REG_POWER_CTL, 0x08);
+}

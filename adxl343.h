@@ -178,10 +178,10 @@ typedef struct ADXL343I2CSettings
 
 typedef struct ADXL343SPISettings
 {
+	int cs_pin;
 	uint8_t mosi_pin;
 	uint8_t miso_pin;
 	uint8_t sclk_pin;
-	uint8_t cs_pin;
 	uint8_t bus_num;
 	uint32_t freq;
 	spi_device_handle_t _spi_handle;
@@ -407,5 +407,13 @@ void ADXL343_set_bf(uint8_t *preg, uint8_t start, uint8_t len, uint8_t value);
 */
 /**************************************************************************/
 uint8_t ADXL343_get_bf(uint8_t *preg, uint8_t start, uint8_t len);
+
+/**************************************************************************/
+/*!
+		@brief  Enable measurements
+		@param preg Pointer to the register of interest
+*/
+/**************************************************************************/
+void ADXL343_measurements(ADXL343_cfg *pcfg);
 
 #endif
