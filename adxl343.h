@@ -76,11 +76,11 @@
 
 #define ADXL343_GRAVITY (9.80665F) /**< Earth's gravity in m/s^2 */
 
-typedef struct ADXL343RegisterMap
-{
-	uint8_t power_control; // internal copy of 0x2D
-	uint8_t data_format;
-} ADXL343RegisterMap;
+// typedef struct ADXL343RegisterMap
+// {
+// 	uint8_t power_control; // internal copy of 0x2D
+// 	uint8_t data_format;
+// } ADXL343RegisterMap;
 
 /** Used with register 0x2C (ADXL3XX_REG_BW_RATE) to set bandwidth */
 typedef enum {
@@ -197,13 +197,15 @@ typedef struct ADXL343InterfaceSettings
 	} interface;
 } ADXL343InterfaceSettings;
 
-typedef struct ADXL343_cfg
+typedef struct ADXL343Config
 {
 	ADXL343InterfaceSettings interface;
 	uint32_t sensor_id;
 	ADXL343Range _range;
-	ADXL343RegisterMap _registers;
-} ADXL343_cfg;
+	ADXL343DataRate _datarate;
+
+	// ADXL343RegisterMap _registers;
+} ADXL343Config;
 
 
 /**************************************************************************/
@@ -214,7 +216,7 @@ typedef struct ADXL343_cfg
 		@param value The value to write to the register
 */
 /**************************************************************************/
-void ADXL343_write_reg(ADXL343_cfg *pcfg, uint8_t addr, uint8_t reg);
+void ADXL343_write_reg(ADXL343Config *pcfg, uint8_t addr, uint8_t reg);
 
 /**************************************************************************/
 /*!
@@ -225,7 +227,7 @@ void ADXL343_write_reg(ADXL343_cfg *pcfg, uint8_t addr, uint8_t reg);
 		@return The results of the register read request
 */
 /**************************************************************************/
-uint8_t ADXL343_read_reg(ADXL343_cfg *pcfg, uint8_t addr);
+uint8_t ADXL343_read_reg(ADXL343Config *pcfg, uint8_t addr);
 
 /**************************************************************************/
 /*!
@@ -236,7 +238,7 @@ uint8_t ADXL343_read_reg(ADXL343_cfg *pcfg, uint8_t addr);
 		@return The 16-bit value read from the reg starting address
 */
 /**************************************************************************/
-uint16_t ADXL343_read_reg16(ADXL343_cfg *pcfg, uint8_t addr);
+uint16_t ADXL343_read_reg16(ADXL343Config *pcfg, uint8_t addr);
 
 /**************************************************************************/
 /*!
@@ -245,7 +247,7 @@ uint16_t ADXL343_read_reg16(ADXL343_cfg *pcfg, uint8_t addr);
 		@return The 8-bit device ID
 */
 /**************************************************************************/
-uint8_t ADXL343_get_device_id(ADXL343_cfg *pcfg);
+uint8_t ADXL343_get_device_id(ADXL343Config *pcfg);
 
 /**************************************************************************/
 /*!
@@ -257,7 +259,7 @@ uint8_t ADXL343_get_device_id(ADXL343_cfg *pcfg);
 		@return True if the operation was successful, otherwise false.
 */
 /**************************************************************************/
-void ADXL343_enable_interrupts(ADXL343_cfg *pcfg, ADXL343IntrConfig intr_cfg);
+void ADXL343_enable_interrupts(ADXL343Config *pcfg, ADXL343IntrConfig intr_cfg);
 
 /**************************************************************************/
 /*!
@@ -269,7 +271,7 @@ void ADXL343_enable_interrupts(ADXL343_cfg *pcfg, ADXL343IntrConfig intr_cfg);
 		@return True if the operation was successful, otherwise false.
 */
 /**************************************************************************/
-void ADXL343_map_interrupts(ADXL343_cfg *pcfg, ADXL343IntrMapping intr_pin);
+void ADXL343_map_interrupts(ADXL343Config *pcfg, ADXL343IntrMapping intr_pin);
 
 /**************************************************************************/
 /*!
@@ -278,10 +280,10 @@ void ADXL343_map_interrupts(ADXL343_cfg *pcfg, ADXL343IntrMapping intr_pin);
 		@param dataRate The data rate to set, based on adxl3xx_dataRate_t
 */
 /**************************************************************************/
-void ADXL343_set_datarate(ADXL343_cfg *pcfg, ADXL343DataRate data_rate);
+void ADXL343_set_datarate(ADXL343Config *pcfg, ADXL343DataRate data_rate);
 
 
-ADXL343DataRate ADXL343_get_datarate(ADXL343_cfg *pcfg);
+ADXL343DataRate ADXL343_get_datarate(ADXL343Config *pcfg);
 
 /**************************************************************************/
 /*!
@@ -290,7 +292,9 @@ ADXL343DataRate ADXL343_get_datarate(ADXL343_cfg *pcfg);
 		@return True if the sensor was successfully initialised.
 */
 /**************************************************************************/
-uint8_t ADXL343_initialise(ADXL343_cfg *pcfg);
+uint8_t ADXL343_initialize(ADXL343Config *pcfg);
+
+uint8_t ADXL343_uninitialize(ADXL343Config *pcfg);
 
 /**************************************************************************/
 /*!
@@ -300,7 +304,7 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg);
 		@return The 8-bit content of the INT_SOURCE register.
 */
 /**************************************************************************/
-uint8_t ADXL343_check_interrupts(ADXL343_cfg *pcfg);
+uint8_t ADXL343_check_interrupts(ADXL343Config *pcfg);
 
 /**************************************************************************/
 /*!
@@ -309,7 +313,7 @@ uint8_t ADXL343_check_interrupts(ADXL343_cfg *pcfg);
 		@return The 16-bit signed value for the X axis
 */
 /**************************************************************************/
-int16_t ADXL343_get_x(ADXL343_cfg *pcfg);
+int16_t ADXL343_get_x(ADXL343Config *pcfg);
 
 /**************************************************************************/
 /*!
@@ -318,7 +322,7 @@ int16_t ADXL343_get_x(ADXL343_cfg *pcfg);
 		@return The 16-bit signed value for the Y axis
 */
 /**************************************************************************/
-int16_t ADXL343_get_y(ADXL343_cfg *pcfg);
+int16_t ADXL343_get_y(ADXL343Config *pcfg);
 
 /**************************************************************************/
 /*!
@@ -327,7 +331,7 @@ int16_t ADXL343_get_y(ADXL343_cfg *pcfg);
 		@return The 16-bit signed value for the Z axis
 */
 /**************************************************************************/
-int16_t ADXL343_get_z(ADXL343_cfg *pcfg);
+int16_t ADXL343_get_z(ADXL343Config *pcfg);
 
 // /**************************************************************************/
 // /*!
@@ -338,7 +342,7 @@ int16_t ADXL343_get_z(ADXL343_cfg *pcfg);
 // 		@return True if the operation was successful, otherwise false.
 // */
 // /**************************************************************************/
-// void ADXL343_get_xyz(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z);
+// void ADXL343_get_xyz(ADXL343Config *pcfg, int16_t *x, int16_t *y, int16_t *z);
 
 /**************************************************************************/
 /*!
@@ -347,7 +351,7 @@ int16_t ADXL343_get_z(ADXL343_cfg *pcfg);
 		@param range The range to set, based on adxl34x_range_t
 */
 /**************************************************************************/
-void ADXL343_set_range(ADXL343_cfg *pcfg, ADXL343Range range);
+void ADXL343_set_range(ADXL343Config *pcfg, ADXL343Range range);
 
 
 /**************************************************************************/
@@ -357,34 +361,31 @@ void ADXL343_set_range(ADXL343_cfg *pcfg, ADXL343Range range);
 		@return The adxl34x_range_t value corresponding to the sensors range
 */
 /**************************************************************************/
-ADXL343Range ADXL343_get_range(ADXL343_cfg *pcfg);
+ADXL343Range ADXL343_get_range(ADXL343Config *pcfg);
 
 /**************************************************************************/
 /*!
-		@brief  Retrieves the X Y Z trim offsets, note that they are 4 bits signed
+		@brief  Retrieves the X Y Z trim offsets, note that they are 8 bits signed
 		but we use int8_t to store and 'extend' the sign bit!
-		@param x Pointer to the x offset, from -5 to 4 (internally multiplied by 8
-	 lsb)
-		@param y Pointer to the y offset, from -5 to 4 (internally multiplied by 8
-	 lsb)
-		@param z Pointer to the z offset, from -5 to 4 (internally multiplied by 8
-	 lsb)
+		@param x Pointer to the x offset, internally multiplied by 15.6 mg/lsb
+		@param y Pointer to the y offset, internally multiplied by 15.6 mg/lsb
+		@param z Pointer to the z offset, internally multiplied by 15.6 mg/lsb
 */
 /**************************************************************************/
-void ADXL343_get_trim_offsets(ADXL343_cfg *pcfg, int8_t *x, int8_t *y, int8_t *z);
+void ADXL343_get_trim_offsets(ADXL343Config *pcfg, int8_t *x, int8_t *y, int8_t *z);
 
 /**************************************************************************/
 /*!
-		@brief  Sets the X Y Z trim offsets, note that they are 4 bits signed
+		@brief  Sets the X Y Z trim offsets, note that they are 8 bits signed
 		but we use int8_t to store and 'extend' the sign bit!
-		@param x The x offset, from -5 to 4 (internally multiplied by 8 lsb)
-		@param y The y offset, from -5 to 4 (internally multiplied by 8 lsb)
-		@param z The z offset, from -5 to 4 (internally multiplied by 8 lsb)
+		@param x The x offset, internally multiplied by 15.6 mg/lsb
+		@param y The y offset, internally multiplied by 15.6 mg/lsb
+		@param z The z offset, internally multiplied by 15.6 mg/lsb
 */
 /**************************************************************************/
-void ADXL343_set_trim_offsets(ADXL343_cfg *pcfg, int8_t x, int8_t y, int8_t z);
+void ADXL343_set_trim_offsets(ADXL343Config *pcfg, int8_t x, int8_t y, int8_t z);
 
-void ADXL343_get_x_y_z(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z);
+void ADXL343_get_x_y_z(ADXL343Config *pcfg, uint16_t *x, uint16_t *y, uint16_t *z);
 
 /**************************************************************************/
 /*!
@@ -410,10 +411,18 @@ uint8_t ADXL343_get_bf(uint8_t *preg, uint8_t start, uint8_t len);
 
 /**************************************************************************/
 /*!
-		@brief  Enable measurements
+		@brief  Start measurements
 		@param preg Pointer to the register of interest
 */
 /**************************************************************************/
-void ADXL343_measurements(ADXL343_cfg *pcfg);
+void ADXL343_measurements(ADXL343Config *pcfg);
+
+/**************************************************************************/
+/*!
+		@brief  Stop measurements
+		@param preg Pointer to the register of interest
+*/
+/**************************************************************************/
+void ADXL343_stopmeasurements(ADXL343Config *pcfg);
 
 #endif

@@ -8,7 +8,7 @@ static char TAG[] = "main";
 
 void app_main()
 {
-    ADXL343_cfg acc1 = {0};
+    ADXL343Config acc1 = {0};
     acc1.interface.interface_type = ADXL343_I2C;
     acc1.interface.interface.i2c = (ADXL343I2CSettings) {
         .scl_pin = 5,

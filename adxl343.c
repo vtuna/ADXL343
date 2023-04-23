@@ -44,7 +44,7 @@ static const char *TAG = "ADXL343 lib";
 #define HOST2 SPI3_HOST
 #endif
 
-void ADXL343_write_reg(ADXL343_cfg *pcfg, uint8_t addr, uint8_t reg)
+void ADXL343_write_reg(ADXL343Config *pcfg, uint8_t addr, uint8_t reg)
 {
 	esp_err_t ret;
 	if (pcfg->interface.interface_type == ADXL343_I2C)
@@ -75,7 +75,7 @@ void ADXL343_write_reg(ADXL343_cfg *pcfg, uint8_t addr, uint8_t reg)
 	}
 }
 
-uint8_t ADXL343_read_reg(ADXL343_cfg *pcfg, uint8_t addr)
+uint8_t ADXL343_read_reg(ADXL343Config *pcfg, uint8_t addr)
 {
 	esp_err_t ret;
 	if (pcfg->interface.interface_type == ADXL343_I2C)
@@ -117,7 +117,7 @@ uint8_t ADXL343_read_reg(ADXL343_cfg *pcfg, uint8_t addr)
 	}
 }
 
-uint16_t ADXL343_read_reg16(ADXL343_cfg *pcfg, uint8_t addr)
+uint16_t ADXL343_read_reg16(ADXL343Config *pcfg, uint8_t addr)
 {
 	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
@@ -148,7 +148,7 @@ uint16_t ADXL343_read_reg16(ADXL343_cfg *pcfg, uint8_t addr)
 	}
 }
 
-void ADXL343_get_x_y_z(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z)
+void ADXL343_get_x_y_z(ADXL343Config *pcfg, uint16_t *x, uint16_t *y, uint16_t *z)
 {
 	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
@@ -187,10 +187,10 @@ void ADXL343_get_x_y_z(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z)
 			.length = 48,
 			.rx_buffer = buf};
 
-		spi_device_acquire_bus(pcfg->interface.interface.spi._spi_handle, portMAX_DELAY);
+		// spi_device_acquire_bus(pcfg->interface.interface.spi._spi_handle, portMAX_DELAY);
 		ret = spi_device_polling_transmit(pcfg->interface.interface.spi._spi_handle, &t);
 		ESP_ERROR_CHECK(ret);
-		spi_device_release_bus(pcfg->interface.interface.spi._spi_handle);
+		// spi_device_release_bus(pcfg->interface.interface.spi._spi_handle);
 
 		*x = buf[0];
 		*y = buf[1];
@@ -198,42 +198,42 @@ void ADXL343_get_x_y_z(ADXL343_cfg *pcfg, int16_t *x, int16_t *y, int16_t *z)
 	}
 }
 
-uint8_t ADXL343_get_device_id(ADXL343_cfg *pcfg)
+uint8_t ADXL343_get_device_id(ADXL343Config *pcfg)
 {
 	return ADXL343_read_reg(pcfg, ADXL3XX_REG_DEVID);
 }
 
-void ADXL343_enable_interrupts(ADXL343_cfg *pcfg, ADXL343IntrConfig intr_cfg)
+void ADXL343_enable_interrupts(ADXL343Config *pcfg, ADXL343IntrConfig intr_cfg)
 {
 	ADXL343_write_reg(pcfg, ADXL3XX_REG_INT_ENABLE, intr_cfg.value);
 }
 
-void ADXL343_map_interrupts(ADXL343_cfg *pcfg, ADXL343IntrMapping intr_pin)
+void ADXL343_map_interrupts(ADXL343Config *pcfg, ADXL343IntrMapping intr_pin)
 {
 	ADXL343_write_reg(pcfg, ADXL3XX_REG_INT_MAP, intr_pin.value);
 }
 
-uint8_t ADXL343_check_interrupts(ADXL343_cfg *pcfg)
+uint8_t ADXL343_check_interrupts(ADXL343Config *pcfg)
 {
 	return ADXL343_read_reg(pcfg, ADXL3XX_REG_INT_SOURCE);
 }
 
-int16_t ADXL343_get_x(ADXL343_cfg *pcfg)
+int16_t ADXL343_get_x(ADXL343Config *pcfg)
 {
 	return ((int16_t)ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAX0));
 }
 
-int16_t ADXL343_get_y(ADXL343_cfg *pcfg)
+int16_t ADXL343_get_y(ADXL343Config *pcfg)
 {
 	return ((int16_t)ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAY0));
 }
 
-int16_t ADXL343_get_z(ADXL343_cfg *pcfg)
+int16_t ADXL343_get_z(ADXL343Config *pcfg)
 {
 	return ((int16_t)ADXL343_read_reg16(pcfg, ADXL3XX_REG_DATAZ0));
 }
 
-uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
+uint8_t ADXL343_initialize(ADXL343Config *pcfg)
 {
 	if (pcfg->interface.interface_type == ADXL343_I2C)
 	{
@@ -341,31 +341,69 @@ uint8_t ADXL343_initialise(ADXL343_cfg *pcfg)
 	return 0;
 }
 
-void ADXL343_set_range(ADXL343_cfg *pcfg, ADXL343Range range)
+uint8_t ADXL343_uninitialize(ADXL343Config *pcfg)
 {
-	ADXL343_set_bf(&pcfg->_registers.data_format, 0, 2, range);
-	ADXL343_set_bf(&pcfg->_registers.data_format, 3, 1, 1);
-	ADXL343_write_reg(pcfg, ADXL3XX_REG_DATA_FORMAT, pcfg->_registers.data_format);
+	esp_err_t ret;
+	if (pcfg->interface.interface_type == ADXL343_I2C)
+	{
+		// TODO iic uninitialize implement
+		return 1;
+	}
+	else
+	{
+		int busno = HOST1; // default to SPI bus 2
+		if (pcfg->interface.interface.spi.bus_num == 3)
+		{
+			busno = HOST1; // SPI bus 2
+		}
+		else if (pcfg->interface.interface.spi.bus_num == 4)
+		{
+			busno = HOST2; // SPI bus 3
+		}
+		else
+		{
+			ESP_LOGE(TAG, "Invalid ADXL343 config");
+			return 1;
+		}
+		ret = spi_bus_remove_device(pcfg->interface.interface.spi._spi_handle);
+		ESP_ERROR_CHECK(ret);
+		ret = spi_bus_free(busno);
+		ESP_ERROR_CHECK(ret);
+	}
 
-	pcfg->_range = range;
+	return 0;
 }
 
-ADXL343Range ADXL343_get_range(ADXL343_cfg *pcfg)
+void ADXL343_set_range(ADXL343Config *pcfg, ADXL343Range range)
 {
-	return ADXL343_read_reg(pcfg, ADXL3XX_REG_DATA_FORMAT) & 0x03;
+	uint8_t reg = ADXL343_read_reg(pcfg, ADXL3XX_REG_DATA_FORMAT);
+	ADXL343_set_bf(&reg, 0, 2, range);
+	ADXL343_set_bf(&reg, 3, 1, 1);
+	ADXL343_write_reg(pcfg, ADXL3XX_REG_DATA_FORMAT, reg);
+	pcfg->_range = range & 0x03;
 }
 
-void ADXL343_set_datarate(ADXL343_cfg *pcfg, ADXL343DataRate data_rate)
+ADXL343Range ADXL343_get_range(ADXL343Config *pcfg)
 {
-	ADXL343_write_reg(pcfg, ADXL3XX_REG_BW_RATE, data_rate);
+	pcfg->_range = ADXL343_read_reg(pcfg, ADXL3XX_REG_DATA_FORMAT) & 0x03;
+	return pcfg->_range;
 }
 
-ADXL343DataRate ADXL343_get_datarate(ADXL343_cfg *pcfg)
+void ADXL343_set_datarate(ADXL343Config *pcfg, ADXL343DataRate data_rate)
 {
-	return ADXL343_read_reg(pcfg, ADXL3XX_REG_BW_RATE) & 0x0F;
+	uint8_t reg = ADXL343_read_reg(pcfg, ADXL3XX_REG_BW_RATE);
+	ADXL343_set_bf(&reg, 0, 4, data_rate);
+	ADXL343_write_reg(pcfg, ADXL3XX_REG_BW_RATE, reg);
+	pcfg->_datarate = data_rate;
 }
 
-void ADXL343_get_trim_offsets(ADXL343_cfg *pcfg, int8_t *x, int8_t *y, int8_t *z)
+ADXL343DataRate ADXL343_get_datarate(ADXL343Config *pcfg)
+{
+	pcfg->_datarate = ADXL343_read_reg(pcfg, ADXL3XX_REG_BW_RATE) & 0x0F;
+	return pcfg->_datarate;
+}
+
+void ADXL343_get_trim_offsets(ADXL343Config *pcfg, int8_t *x, int8_t *y, int8_t *z)
 {
 	if (x != NULL)
 		*x = ADXL343_read_reg(pcfg, ADXL3XX_REG_OFSX);
@@ -377,9 +415,8 @@ void ADXL343_get_trim_offsets(ADXL343_cfg *pcfg, int8_t *x, int8_t *y, int8_t *z
 		*z = ADXL343_read_reg(pcfg, ADXL3XX_REG_OFSZ);
 }
 
-void ADXL343_set_trim_offsets(ADXL343_cfg *pcfg, int8_t x, int8_t y, int8_t z)
+void ADXL343_set_trim_offsets(ADXL343Config *pcfg, int8_t x, int8_t y, int8_t z)
 {
-
 	ADXL343_write_reg(pcfg, ADXL3XX_REG_OFSX, x);
 	ADXL343_write_reg(pcfg, ADXL3XX_REG_OFSY, y);
 	ADXL343_write_reg(pcfg, ADXL3XX_REG_OFSZ, z);
@@ -400,8 +437,16 @@ uint8_t ADXL343_get_bf(uint8_t *preg, uint8_t start, uint8_t len)
 	return result;
 }
 
-void ADXL343_measurements(ADXL343_cfg *pcfg)
+void ADXL343_measurements(ADXL343Config *pcfg)
 {
 	// Enable measurements
-	ADXL343_write_reg(pcfg, ADXL3XX_REG_POWER_CTL, 0x08);
+	uint8_t reg = ADXL343_read_reg(pcfg, ADXL3XX_REG_POWER_CTL);
+	ADXL343_write_reg(pcfg, ADXL3XX_REG_POWER_CTL, reg | 0x08);
+}
+
+void ADXL343_stopmeasurements(ADXL343Config *pcfg)
+{
+	// Enable measurements
+	uint8_t reg = ADXL343_read_reg(pcfg, ADXL3XX_REG_POWER_CTL);
+	ADXL343_write_reg(pcfg, ADXL3XX_REG_POWER_CTL, reg & (~0x08));
 }
